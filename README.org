@@ -1,0 +1,62 @@
+#+title: Parenchek
+
+Parenchek checks structural delimiters in Common Lisp, Scheme, and Clojure
+source. It provides language-aware in-memory analysis, bounded edit warnings,
+and a race-resistant recursive filesystem checker for SBCL on Unix systems.
+
+The scanner ignores delimiters inside strings, line comments, supported nested
+block comments, escaped symbols, character literals, script headers, and
+language-specific reader escapes. It reports unexpected closers, mismatched
+delimiter types, and unclosed openers with one-based line and column locations.
+
+* Usage
+
+#+BEGIN_SRC lisp
+(asdf:load-system :parenchek)
+
+(parenchek:lisp-source-balance-issues
+ #P"example.clj"
+ "{:items [1 2)}")
+
+(parenchek:lisp-source-balance-warning
+ #P"example.scm"
+ "(define value 1")
+
+(parenchek:lisp-source-edit-result-content
+ "Applied edit."
+ #P"example.lisp"
+ "(defun incomplete ()")
+#+END_SRC
+
+=lisp-paren-check-path= checks one recognized source file or recursively checks
+a directory. It returns two values: a success boolean and bounded model-facing
+text. =:readable-roots= may restrict canonical filesystem authority. Failures
+before candidate checking, including unsafe root changes and traversal limits,
+signal =lisp-paren-check-error=. Individual file read and snapshot failures are
+retained as failed diagnostics in the returned report.
+
+#+BEGIN_SRC lisp
+(multiple-value-bind (success-p report)
+    (parenchek:lisp-paren-check-path
+     #P"src/"
+     :readable-roots (list (truename #P"./")))
+  (format t "~:[failed~;passed~]~%~A~%" success-p report))
+#+END_SRC
+
+* Supported source extensions
+
+- Common Lisp: =asd=, =cl=, =lisp=, =lsp=, =ros=
+- Scheme: =sch=, =scheme=, =scm=, =sld=, =sls=, =ss=
+- Clojure: =bb=, =clj=, =cljc=, =cljs=, =edn=
+
+* Tests
+
+#+BEGIN_SRC sh
+./script/bootstrap
+./script/check
+#+END_SRC
+
+* License
+
+Parenchek uses COLL-Attribution. The authoritative terms are in
+=LICENSE.lisp=.
