@@ -2,12 +2,20 @@
 
 Parenchek checks structural delimiters in Common Lisp, Scheme, and Clojure
 source. It provides language-aware in-memory analysis, bounded edit warnings,
-and a race-resistant recursive filesystem checker for SBCL on Unix systems.
+and a recursive filesystem checker for SBCL on Unix.
 
-The scanner ignores delimiters inside strings, line comments, supported nested
-block comments, escaped symbols, character literals, script headers, and
-language-specific reader escapes. It reports unexpected closers, mismatched
-delimiter types, and unclosed openers with one-based line and column locations.
+The scanner ignores delimiters inside:
+
+- strings
+- line comments
+- supported nested block comments
+- escaped symbols
+- character literals
+- script headers
+- language-specific reader escapes
+
+It reports unexpected closers, mismatched delimiter types, and unclosed
+openers with one-based line and column locations.
 
 * Usage
 
@@ -28,12 +36,12 @@ delimiter types, and unclosed openers with one-based line and column locations.
  "(defun incomplete ()")
 #+END_SRC
 
-=lisp-paren-check-path= checks one recognized source file or recursively checks
-a directory. It returns two values: a success boolean and bounded model-facing
-text. =:readable-roots= may restrict canonical filesystem authority. Failures
-before candidate checking, including unsafe root changes and traversal limits,
-signal =lisp-paren-check-error=. Individual file read and snapshot failures are
-retained as failed diagnostics in the returned report.
+=lisp-paren-check-path= checks one recognized source file or recursively
+checks a directory. It returns two values: a success boolean and bounded
+model-facing text. =:readable-roots= may restrict canonical filesystem
+authority. Failures before candidate checking, including unsafe root changes
+and traversal limits, signal =lisp-paren-check-error=. Individual file read
+and snapshot failures become failed diagnostics in the returned report.
 
 #+BEGIN_SRC lisp
 (multiple-value-bind (success-p report)
