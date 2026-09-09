@@ -97,16 +97,34 @@
   (or (uiop:pathname-equal path root)
       (not (null (uiop:subpathp path root)))))
 
+;;; Observations are LS-COMPAT.POSIX:FILE-INFORMATION objects, whose
+;;; identities name a filesystem object on its volume on every host.
+
 (-> lisp-paren-check--same-file-stat-p (t t) boolean)
 (defun lisp-paren-check--same-file-stat-p (left right)
-  "Return true when LEFT and RIGHT identify the same filesystem object."
-  (and (= (sb-posix:stat-dev left) (sb-posix:stat-dev right))
-       (= (sb-posix:stat-ino left) (sb-posix:stat-ino right))))
+  "Return true when observations LEFT and RIGHT identify the same filesystem object."
+  (equal (ls-compat.posix:file-information-identity left)
+         (ls-compat.posix:file-information-identity right)))
 
-(-> lisp-paren-check--stat-identity (t) cons)
+(-> lisp-paren-check--stat-identity (t) t)
 (defun lisp-paren-check--stat-identity (stat)
-  "Return a hashable device and inode identity for STAT."
-  (cons (sb-posix:stat-dev stat) (sb-posix:stat-ino stat)))
+  "Return the EQUAL-comparable identity of observation STAT."
+  (ls-compat.posix:file-information-identity stat))
+
+(-> lisp-paren-check--observe (pathname &key (:follow-links-p boolean)) t)
+(defun lisp-paren-check--observe (path &key (follow-links-p t))
+  "Observe PATH, following a symbolic link unless FOLLOW-LINKS-P is false."
+  (ls-compat.posix:file-information path :follow-links-p follow-links-p))
+
+(-> lisp-paren-check--directory-p (t) boolean)
+(defun lisp-paren-check--directory-p (stat)
+  "Return true when observation STAT is a directory."
+  (eq (ls-compat.posix:file-information-kind stat) ':directory))
+
+(-> lisp-paren-check--regular-file-p (t) boolean)
+(defun lisp-paren-check--regular-file-p (stat)
+  "Return true when observation STAT is a regular file."
+  (eq (ls-compat.posix:file-information-kind stat) ':file))
 
 (-> lisp-paren-check--canonical-readable-roots (list) list)
 (defun lisp-paren-check--canonical-readable-roots (roots)
@@ -169,9 +187,8 @@
   (labels ((observe ()
              "Return one internally consistent canonical observation of PATH."
              (let* ((canonical (truename path))
-                    (path-stat (sb-posix:stat (namestring path)))
-                    (canonical-stat
-                      (sb-posix:stat (namestring canonical))))
+                    (path-stat (lisp-paren-check--observe path))
+                    (canonical-stat (lisp-paren-check--observe canonical)))
                (lisp-paren-check--validate-canonical-path
                 path canonical readable-roots :requested-root requested-root)
                (unless (lisp-paren-check--same-file-stat-p
@@ -198,7 +215,14 @@
                  :tool-name "lisp.paren-check"))
         (values canonical-after stat-after)))))
 
+;;; POSIX hosts verify a directory through the descriptor behind its open
+;;; handle, which Windows enumeration has no counterpart for; the Windows
+;;; traversal below observes the directory by path before and after each
+;;; enumeration instead.
+
+#-win32
 (-> lisp-paren-check--directory-file-descriptor (t) integer)
+#-win32
 (defun lisp-paren-check--directory-file-descriptor (directory)
   "Return the native file descriptor backing open DIRECTORY."
   (let ((descriptor
@@ -217,7 +241,7 @@
   "Require PATH to keep naming the directory identified by OPENED-STAT."
   (let ((current-stat
           (handler-case
-              (sb-posix:stat (namestring path))
+              (lisp-paren-check--observe path)
             (error ()
               (error 'lisp-paren-check-error
                      :message
@@ -234,7 +258,9 @@
              :tool-name "lisp.paren-check")))
   nil)
 
+#-win32
 (-> lisp-paren-check--rewind-directory (t) null)
+#-win32
 (defun lisp-paren-check--rewind-directory (directory)
   "Rewind open DIRECTORY to its first entry."
   (sb-alien:alien-funcall
@@ -243,9 +269,11 @@
    directory)
   nil)
 
+#-win32
 (-> lisp-paren-check--directory-entry-names
     (t (integer 0))
     (values list (integer 0) boolean))
+#-win32
 (defun lisp-paren-check--directory-entry-names (directory entry-limit)
   "Return sorted entry names from open DIRECTORY within ENTRY-LIMIT."
   (let ((names nil)
@@ -275,20 +303,19 @@
     (dolist (name names)
       (lisp-paren-check--validate-directory-path directory opened-stat)
       (let* ((path (merge-pathnames name directory))
-             (status (sb-posix:lstat (namestring path)))
-             (mode (sb-posix:stat-mode status)))
+             (status (lisp-paren-check--observe path :follow-links-p nil))
+             (kind (ls-compat.posix:file-information-kind status)))
         (cond
-          ((sb-posix:s-isdir mode)
+          ((eq kind ':directory)
            (push (uiop:ensure-directory-pathname path) subdirectories))
-          ((sb-posix:s-islnk mode)
+          ((eq kind ':symbolic-link)
            (handler-case
-               (let* ((target-status (sb-posix:stat (namestring path)))
-                      (target-mode (sb-posix:stat-mode target-status)))
+               (let ((target-status (lisp-paren-check--observe path)))
                  (cond
-                   ((sb-posix:s-isdir target-mode)
+                   ((lisp-paren-check--directory-p target-status)
                     (push (uiop:ensure-directory-pathname path)
                           subdirectories))
-                   ((and (sb-posix:s-isreg target-mode)
+                   ((and (lisp-paren-check--regular-file-p target-status)
                          (lisp-source-balance-language path))
                     (push path files))))
              (error (condition)
@@ -299,16 +326,96 @@
                               path
                               condition)
                       :tool-name "lisp.paren-check"))))
-          ((and (sb-posix:s-isreg mode)
+          ((and (eq kind ':file)
                 (lisp-source-balance-language path))
            (push path files))))
       (lisp-paren-check--validate-directory-path directory opened-stat))
     (values (sort files #'lisp-paren-check--pathname<)
             (sort subdirectories #'lisp-paren-check--pathname<))))
 
+#-win32
+(-> lisp-paren-check--descriptor-observation (integer) t)
+#-win32
+(defun lisp-paren-check--descriptor-observation (descriptor)
+  "Observe the object behind open DESCRIPTOR."
+  (let* ((stat (sb-posix:fstat descriptor))
+         (mode (sb-posix:stat-mode stat)))
+    (ls-compat.posix:make-file-information
+     (cond
+       ((sb-posix:s-isreg mode) ':file)
+       ((sb-posix:s-isdir mode) ':directory)
+       ((sb-posix:s-islnk mode) ':symbolic-link)
+       (t ':other))
+     (cons (sb-posix:stat-dev stat) (sb-posix:stat-ino stat))
+     (sb-posix:stat-size stat)
+     (sb-posix:stat-mtime stat)
+     (sb-posix:stat-ctime stat))))
+
+#+win32
 (-> lisp-paren-check--directory-entries
     (pathname t (integer 0))
     (values list list (integer 0) boolean))
+#+win32
+(defun lisp-paren-check--directory-entries
+    (directory expected-stat entry-limit)
+  "Return repeated stable classifications from verified DIRECTORY.
+
+Enumeration stops at the first entry beyond ENTRY-LIMIT. The third value is the
+number of retained entries, and the fourth value reports whether the limit was
+exceeded. Windows has no descriptor for an enumerated directory, so the
+directory is observed by path before and after each pass instead."
+  (flet ((names ()
+           "Return the sorted entry names of DIRECTORY and whether more exist."
+           (multiple-value-bind (entries exceeded-p)
+               (ls-compat.posix:directory-entries directory :limit entry-limit)
+             (values (sort (mapcar #'car entries) #'string<) exceeded-p))))
+    (lisp-paren-check--validate-directory-path directory expected-stat)
+    (when *lisp-paren-check-after-directory-open-function*
+      (funcall *lisp-paren-check-after-directory-open-function* directory))
+    (multiple-value-bind (names exceeded-p)
+        (names)
+      (when exceeded-p
+        (return-from lisp-paren-check--directory-entries
+          (values nil nil entry-limit t)))
+      (lisp-paren-check--validate-directory-path directory expected-stat)
+      (multiple-value-bind (files subdirectories)
+          (lisp-paren-check--classify-directory-entries
+           directory expected-stat names)
+        (multiple-value-bind (verification-names verification-exceeded-p)
+            (names)
+          (unless (and (not verification-exceeded-p)
+                       (equal names verification-names))
+            (error 'lisp-paren-check-error
+                   :message
+                   (format nil
+                           "Lisp source directory ~A changed during traversal."
+                           directory)
+                   :tool-name "lisp.paren-check"))
+          (multiple-value-bind (verification-files verification-subdirectories)
+              (lisp-paren-check--classify-directory-entries
+               directory expected-stat verification-names)
+            (unless (and (equal (mapcar #'namestring files)
+                                (mapcar #'namestring verification-files))
+                         (equal (mapcar #'namestring subdirectories)
+                                (mapcar #'namestring
+                                        verification-subdirectories)))
+              (error 'lisp-paren-check-error
+                     :message
+                     (format nil
+                             "Lisp source directory ~A changed during traversal."
+                             directory)
+                     :tool-name "lisp.paren-check"))
+            (lisp-paren-check--validate-directory-path directory expected-stat)
+            (values verification-files
+                    verification-subdirectories
+                    (length names)
+                    nil)))))))
+
+#-win32
+(-> lisp-paren-check--directory-entries
+    (pathname t (integer 0))
+    (values list list (integer 0) boolean))
+#-win32
 (defun lisp-paren-check--directory-entries
     (directory expected-stat entry-limit)
   "Return repeated stable classifications from verified DIRECTORY.
@@ -323,8 +430,9 @@ makes the check fail rather than silently claiming complete coverage."
            (setf handle (sb-posix:opendir (namestring directory)))
            (let* ((descriptor
                     (lisp-paren-check--directory-file-descriptor handle))
-                  (opened-stat (sb-posix:fstat descriptor)))
-             (unless (and (sb-posix:s-isdir (sb-posix:stat-mode opened-stat))
+                  (opened-stat
+                    (lisp-paren-check--descriptor-observation descriptor)))
+             (unless (and (lisp-paren-check--directory-p opened-stat)
                           (lisp-paren-check--same-file-stat-p
                            expected-stat opened-stat))
                (error 'lisp-paren-check-error
@@ -417,7 +525,7 @@ makes the check fail rather than silently claiming complete coverage."
                    (lisp-paren-check--observe-path
                     directory readable-roots
                     :requested-root canonical-root)))
-               (unless (sb-posix:s-isdir (sb-posix:stat-mode status))
+               (unless (lisp-paren-check--directory-p status)
                  (error 'lisp-paren-check-error
                         :message
                         (format nil "~A is not a directory." directory)
@@ -491,9 +599,12 @@ makes the check fail rather than silently claiming complete coverage."
 (defun lisp-paren-check--stable-file-stat-p (before after)
   "Return true when one opened file kept the same identity, size, and timestamps."
   (and (lisp-paren-check--same-file-stat-p before after)
-       (= (sb-posix:stat-size before) (sb-posix:stat-size after))
-       (= (sb-posix:stat-mtime before) (sb-posix:stat-mtime after))
-       (= (sb-posix:stat-ctime before) (sb-posix:stat-ctime after))))
+       (= (ls-compat.posix:file-information-size before)
+          (ls-compat.posix:file-information-size after))
+       (= (ls-compat.posix:file-information-modification-time before)
+          (ls-compat.posix:file-information-modification-time after))
+       (= (ls-compat.posix:file-information-change-time before)
+          (ls-compat.posix:file-information-change-time after))))
 
 (-> lisp-paren-check--validate-opened-file
     (pathname t list &key (:canonical-root (option pathname)))
@@ -543,36 +654,25 @@ The content is NIL when the limit was exceeded."
          (byte-limit
            (min (* 4 limit) (1- array-total-size-limit)))
          (open-path (truename path))
-         (file-descriptor nil)
          (stream nil))
     (lisp-paren-check--validate-canonical-path
      path open-path readable-roots :requested-root canonical-root)
     (unwind-protect
-         (progn
-           (setf file-descriptor
-                 (sb-posix:open
-                  (namestring open-path)
-                  (logior sb-posix:o-rdonly
-                          sb-posix:o-nonblock
-                          sb-posix:o-nofollow)))
-           (let ((stat (sb-posix:fstat file-descriptor)))
-             (unless (sb-posix:s-isreg (sb-posix:stat-mode stat))
-               (error 'lisp-paren-check-error
-                      :message (format nil "~A is not a regular file." path)
-                      :tool-name "lisp.paren-check"))
+         (multiple-value-bind (opened-stream stat)
+             (handler-case
+                 (ls-compat.posix:open-regular-file open-path)
+               (ls-compat.posix:not-regular-file ()
+                 (error 'lisp-paren-check-error
+                        :message (format nil "~A is not a regular file." path)
+                        :tool-name "lisp.paren-check")))
+           (setf stream opened-stream)
+           (progn
              (lisp-paren-check--validate-opened-file
               path stat readable-roots :canonical-root canonical-root)
-             (let ((length (sb-posix:stat-size stat)))
+             (let ((length (ls-compat.posix:file-information-size stat)))
                (when (> length byte-limit)
                  (return-from lisp-paren-check--read-file
                    (values nil (1+ limit) t)))
-               (setf stream
-                     (sb-sys:make-fd-stream
-                      file-descriptor
-                      :input t
-                      :element-type '(unsigned-byte 8)
-                      :buffering :none
-                      :auto-close nil))
                (let ((octets
                        (lisp-paren-check--read-exact-octets
                         stream length path)))
@@ -592,7 +692,7 @@ The content is NIL when the limit was exceeded."
                           stream length path)))
                    (unless (and
                             (lisp-paren-check--stable-file-stat-p
-                             stat (sb-posix:fstat file-descriptor))
+                             stat (ls-compat.posix:stream-file-information stream))
                             (equalp octets verification))
                      (error 'lisp-paren-check-error
                             :message
@@ -615,9 +715,7 @@ The content is NIL when the limit was exceeded."
                          (values nil (length content) t)
                          (values content (length content) nil))))))))
       (when stream
-        (close stream))
-      (when file-descriptor
-        (ignore-errors (sb-posix:close file-descriptor))))))
+        (close stream)))))
 
 (-> lisp-paren-check--single-line (t (integer 0)) string)
 (defun lisp-paren-check--single-line (value maximum)
@@ -854,7 +952,7 @@ retained as failed file diagnostics in the returned report."
         (multiple-value-bind (canonical stat)
             (lisp-paren-check--observe-path path readable-roots)
           (cond
-            ((sb-posix:s-isdir (sb-posix:stat-mode stat))
+            ((lisp-paren-check--directory-p stat)
              (multiple-value-bind (files canonical-root)
                  (lisp-paren-check--directory-files
                   path
@@ -880,7 +978,7 @@ retained as failed file diagnostics in the returned report."
                              (uiop:ensure-directory-pathname path)
                              run)))
                      (values (lisp-paren-check-run-success-p run) content)))))
-            ((not (sb-posix:s-isreg (sb-posix:stat-mode stat)))
+            ((not (lisp-paren-check--regular-file-p stat))
              (values
               nil
               (lisp-paren-check--bounded-line
