@@ -4,7 +4,8 @@
   :license "COLL-Attribution"
   :version "0.1.0"
   :serial t
-  :depends-on (#:sb-posix
+  :depends-on (#:ls-compat/posix
+               #:sb-posix
                #:serapeum)
   :components ((:module "src"
                 :serial t
