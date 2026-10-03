@@ -6,3 +6,7 @@
  (:class qlot/source/ql:source-ql
   :initargs (:%version "2026-01-01")
   :version "ql-2026-01-01"))
+("ls-compat" .
+ (:class qlot/source/git:source-git
+  :initargs (:remote-url "https://github.com/lambda-symbolics/ls-compat.git" :ref "52c959f2bc00adc30f2970c2fd2226bd0c01730d")
+  :version "git-52c959f2bc00adc30f2970c2fd2226bd0c01730d"))

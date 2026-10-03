@@ -1,1 +1,2 @@
 ql serapeum 2026-01-01
+git ls-compat https://github.com/lambda-symbolics/ls-compat.git :ref 52c959f2bc00adc30f2970c2fd2226bd0c01730d
