@@ -221,20 +221,27 @@
 ;;; enumeration instead.
 
 #-win32
-(-> lisp-paren-check--directory-file-descriptor (t) integer)
+(-> lisp-paren-check--open-directory (pathname) (values t integer))
 #-win32
-(defun lisp-paren-check--directory-file-descriptor (directory)
-  "Return the native file descriptor backing open DIRECTORY."
-  (let ((descriptor
-          (sb-alien:alien-funcall
-           (sb-alien:extern-alien
-            "dirfd" (function sb-alien:int (* t)))
-           directory)))
-    (when (minusp descriptor)
-      (error 'lisp-paren-check-error
-             :message "Could not obtain an opened Lisp source directory descriptor."
-             :tool-name "lisp.paren-check"))
-    descriptor))
+(defun lisp-paren-check--open-directory (directory)
+  "Open DIRECTORY for enumeration and return its handle and descriptor.
+
+The descriptor is opened first and handed to fdopendir, so the handle needs no
+dirfd, which NetBSD and other hosts define only as a header macro. The handle
+owns the descriptor; closing the handle closes both. Opening never blocks, even
+if the path was replaced by a FIFO, and the caller rejects anything but a
+directory through the descriptor."
+  (let ((descriptor (sb-posix:open (sb-ext:native-namestring directory)
+                                   (logior sb-posix:o-rdonly sb-posix:o-nonblock))))
+    (let ((handle (sb-alien:alien-funcall
+                   (sb-alien:extern-alien "fdopendir" (function (* t) sb-alien:int))
+                   descriptor)))
+      (when (sb-alien:null-alien handle)
+        (sb-posix:close descriptor)
+        (error 'lisp-paren-check-error
+               :message (format nil "Could not open Lisp source directory ~A." directory)
+               :tool-name "lisp.paren-check"))
+      (values handle descriptor))))
 
 (-> lisp-paren-check--validate-directory-path (pathname t) null)
 (defun lisp-paren-check--validate-directory-path (path opened-stat)
@@ -424,14 +431,14 @@ Enumeration stops at the first entry beyond ENTRY-LIMIT. The third value is the
 number of retained entries, and the fourth value reports whether the limit was
 exceeded. Symbolic links are classified by their targets; an unresolved link
 makes the check fail rather than silently claiming complete coverage."
-  (let ((handle nil))
+  (let ((handle nil)
+        (descriptor nil))
     (unwind-protect
          (progn
-           (setf handle (sb-posix:opendir (namestring directory)))
-           (let* ((descriptor
-                    (lisp-paren-check--directory-file-descriptor handle))
-                  (opened-stat
-                    (lisp-paren-check--descriptor-observation descriptor)))
+           (multiple-value-setq (handle descriptor)
+             (lisp-paren-check--open-directory directory))
+           (let ((opened-stat
+                   (lisp-paren-check--descriptor-observation descriptor)))
              (unless (and (lisp-paren-check--directory-p opened-stat)
                           (lisp-paren-check--same-file-stat-p
                            expected-stat opened-stat))
