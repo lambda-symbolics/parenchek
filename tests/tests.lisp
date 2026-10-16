@@ -75,6 +75,7 @@
              ("sample.lisp" :common-lisp)
              ("sample.lsp" :common-lisp)
              ("sample.ros" :common-lisp)
+             ("sample.pp" :scheme)
              ("sample.sch" :scheme)
              ("sample.scheme" :scheme)
              ("sample.scm" :scheme)
