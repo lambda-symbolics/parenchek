@@ -13,7 +13,7 @@
   "Pathname types recognized as Common Lisp source for delimiter checking.")
 
 (defparameter *lisp-source-balance-scheme-pathname-types*
-  '("sch" "scheme" "scm" "sld" "sls" "ss")
+  '("pp" "sch" "scheme" "scm" "sld" "sls" "ss")
   "Pathname types recognized as Scheme source for delimiter checking.")
 
 (defparameter *lisp-source-balance-clojure-pathname-types*
