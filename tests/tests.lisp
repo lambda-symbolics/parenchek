@@ -370,6 +370,23 @@
                         "is not a directory"
                         (lisp-paren-check-error-message condition)))
                   "Regular files are rejected as readable directory roots"))
+               (let* ((elsewhere (merge-pathnames "elsewhere/" root))
+                      (condition
+                        (progn
+                          (ensure-directories-exist elsewhere)
+                          (handler-case
+                              (progn
+                                (lisp-paren-check-path
+                                 balanced :readable-roots (list elsewhere))
+                                nil)
+                            (lisp-paren-check-error (caught)
+                              caught)))))
+                 (test-assert
+                  (and condition
+                       (search "is outside the readable roots"
+                               (lisp-paren-check-error-message condition))
+                       (not (search "moved" (lisp-paren-check-error-message condition))))
+                  "A request outside the readable roots says so instead of reporting a move"))
                (write-text broken "{:x [1 2]}")
                (let ((result (call "path" (namestring tree))))
                  (test-assert

@@ -178,6 +178,21 @@
            :tool-name "lisp.paren-check"))
   nil)
 
+(-> lisp-paren-check--require-readable (pathname list) null)
+(defun lisp-paren-check--require-readable (path readable-roots)
+  "Reject PATH when it lies outside READABLE-ROOTS before checking begins.
+
+Later checks report a path that moves outside the roots during checking; this
+one names a request that never was inside them."
+  (when (and readable-roots
+             (notany (lambda (root)
+                       (lisp-paren-check--canonical-subpath-p (truename path) root))
+                     readable-roots))
+    (error 'lisp-paren-check-error
+           :message (format nil "~A is outside the readable roots." path)
+           :tool-name "lisp.paren-check"))
+  nil)
+
 (-> lisp-paren-check--observe-path
     (pathname list &key (:requested-root (option pathname)))
     (values pathname t))
@@ -957,7 +972,9 @@ retained as failed file diagnostics in the returned report."
          (lisp-paren-check--bounded-line
           (format nil "~A does not exist." path)))
         (multiple-value-bind (canonical stat)
-            (lisp-paren-check--observe-path path readable-roots)
+            (progn
+              (lisp-paren-check--require-readable path readable-roots)
+              (lisp-paren-check--observe-path path readable-roots))
           (cond
             ((lisp-paren-check--directory-p stat)
              (multiple-value-bind (files canonical-root)
