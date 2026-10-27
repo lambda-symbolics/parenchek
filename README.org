@@ -57,12 +57,19 @@ and snapshot failures become failed diagnostics in the returned report.
 - Scheme: =sch=, =scheme=, =scm=, =sld=, =sls=, =ss=
 - Clojure: =bb=, =clj=, =cljc=, =cljs=, =edn=
 
-* Tests
+* Development
 
 #+BEGIN_SRC sh
 ./script/bootstrap
 ./script/check
+./script/check --fix
 #+END_SRC
+
+=./script/check= runs the tests, then checks the source with
+[[https://github.com/lambda-symbolics/cheque][cheque]] as =cheque.sexp=
+configures it. =--fix= skips the tests and repairs what cheque can repair.
+cheque and its tools are development dependencies: =checks/qlfile= lists them,
+and the check installs them on first use into =~/.cache/cheque/tools/=.
 
 * License
 
