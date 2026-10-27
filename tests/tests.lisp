@@ -33,6 +33,7 @@
 (defvar *test-count* 0
   "The number of assertions executed by the current test run.")
 
+(-> test-assert (t string) (eql t))
 (defun test-assert (condition description)
   "Count and require CONDITION, reporting DESCRIPTION on failure."
   (incf *test-count*)
@@ -49,6 +50,7 @@
 (defvar *test-readable-roots* nil
   "Canonical read authority passed through the public checker in tests.")
 
+(-> tests--temporary-directory () pathname)
 (defun tests--temporary-directory ()
   "Create and return one unique temporary directory."
   (let ((directory
@@ -629,6 +631,7 @@
 
 ;;;; -- Test Entry Point --
 
+(-> run-tests () (eql t))
 (defun run-tests ()
   "Run Parenchek's tests and return true on success."
   (setf *test-count* 0)
