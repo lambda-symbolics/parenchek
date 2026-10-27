@@ -123,17 +123,17 @@
         (test-assert
          (lisp-source-balance-tests--balanced-p path content)
          label))))
+  (test-assert
+   (lisp-source-balance-tests--balanced-p
+    #P"escaped.lisp"
+    (format nil "(list foo~C( foo~C))" #\\ #\\))
+   "Common Lisp single escapes hide delimiter characters in symbols")
+  (dolist (path '(#P"script.ros" #P"script.scm" #P"script.bb"))
     (test-assert
      (lisp-source-balance-tests--balanced-p
-      #P"escaped.lisp"
-      (format nil "(list foo~C( foo~C))" #\\ #\\))
-     "Common Lisp single escapes hide delimiter characters in symbols")
-    (dolist (path '(#P"script.ros" #P"script.scm" #P"script.bb"))
-      (test-assert
-       (lisp-source-balance-tests--balanced-p
-        path
-        (format nil "#!/usr/bin/env lisp (~%(list)"))
-       "First-line Lisp-family script headers ignore delimiter characters"))
+      path
+      (format nil "#!/usr/bin/env lisp (~%(list)"))
+     "First-line Lisp-family script headers ignore delimiter characters"))
   (test-assert
    (null
     (lisp-source-balance-issues
@@ -144,7 +144,7 @@
            (lisp-source-balance-issues
             #P"hex-identifier.scm"
             (format nil "foo~Cx28; (" #\\)))
-         (issue (first issues))
+         (issue     (first issues))
          (delimiter (and issue (lisp-source-balance-issue-delimiter issue))))
     (test-assert
      (and (= (length issues) 1)
@@ -156,7 +156,7 @@
            (lisp-source-balance-issues
             #P"missing.lisp"
             (format nil "(defun sample ()~%  (list 1)~%")))
-         (issue (first issues))
+         (issue     (first issues))
          (delimiter (and issue (lisp-source-balance-issue-delimiter issue))))
     (test-assert
      (and (= (length issues) 1)
@@ -167,7 +167,7 @@
      "Common Lisp analysis locates an unmatched opening parenthesis"))
   (let* ((issues
            (lisp-source-balance-issues #P"extra.scm" "(define x 1))"))
-         (issue (first issues))
+         (issue     (first issues))
          (delimiter (and issue (lisp-source-balance-issue-delimiter issue))))
     (test-assert
      (and (= (length issues) 1)
@@ -178,9 +178,9 @@
      "Scheme analysis locates an extra closing parenthesis"))
   (let* ((issues
            (lisp-source-balance-issues #P"mismatch.clj" "{:x [1 2)}"))
-         (issue (first issues))
+         (issue     (first issues))
          (delimiter (and issue (lisp-source-balance-issue-delimiter issue)))
-         (opener (and issue (lisp-source-balance-issue-opener issue))))
+         (opener    (and issue (lisp-source-balance-issue-opener issue))))
     (test-assert
      (and (= (length issues) 1)
           (eq (lisp-source-balance-issue-kind issue) ':mismatched-close)
@@ -234,7 +234,7 @@
           (not (search (format nil "unsafe~%name.clj") warning)))
      "Advisory warnings render pathnames without injected control lines"))
   (let* ((*lisp-source-balance-warning-character-limit* 180)
-         (*lisp-source-balance-warning-issue-limit* "invalid")
+         (*lisp-source-balance-warning-issue-limit*     "invalid")
          (path
            (make-pathname
             :name (format nil "unsafe~%fallback")
@@ -297,32 +297,32 @@
                                      :readable-roots *test-readable-roots*)
                                   (tool-result-create
                                    :success-p success-p
-                                   :content content))
+                                   :content   content))
                               (lisp-paren-check-error (condition)
                                 (tool-result-create
                                  :success-p nil
-                                 :content (princ-to-string condition)))))))
+                                 :content   (princ-to-string condition)))))))
 
                     (write-text (path content)
                       "Replace PATH with UTF-8 CONTENT."
                       (ensure-directories-exist path)
                       (with-open-file (stream path
-                                              :direction :output
-                                              :if-exists :supersede
+                                              :direction         :output
+                                              :if-exists         :supersede
                                               :if-does-not-exist :create
-                                              :external-format :utf-8)
+                                              :external-format   :utf-8)
                         (write-string content stream))))
-             (let* ((tree (merge-pathnames "source/" root))
-                    (nested (merge-pathnames "nested/" tree))
+             (let* ((tree     (merge-pathnames "source/" root))
+                    (nested   (merge-pathnames "nested/" tree))
                     (balanced (merge-pathnames "balanced.lisp" tree))
-                    (scheme (merge-pathnames "valid.scm" nested))
-                    (broken (merge-pathnames "bad.clj" nested))
-                    (ignored (merge-pathnames "ignored.txt" tree)))
+                    (scheme   (merge-pathnames "valid.scm" nested))
+                    (broken   (merge-pathnames "bad.clj" nested))
+                    (ignored  (merge-pathnames "ignored.txt" tree)))
                (write-text balanced "(defun balanced () 42)")
                (write-text scheme "(define values [1 2 3])")
                (write-text broken "{:x [1 2)}")
                (write-text ignored ")))")
-               (let* ((result (call "path" (namestring tree)))
+               (let* ((result  (call "path" (namestring tree)))
                       (content (tool-result-content result)))
                  (test-assert
                   (and (not (tool-result-success-p result))
@@ -332,7 +332,7 @@
                        (search "expected `]`" content)
                        (not (search "ignored.txt" content)))
                   "lisp.paren-check recursively checks recognized files with exact diagnostics"))
-               (let* ((result (call "path" (namestring balanced)))
+               (let* ((result  (call "path" (namestring balanced)))
                       (content (tool-result-content result)))
                  (test-assert
                   (and (tool-result-success-p result)
@@ -415,8 +415,8 @@
                                   (make-string 120 :initial-element #\x))
                           :type "lisp")
                          root))
-                      (result (call "path" (namestring missing)))
-                      (content (tool-result-content result)))
+                      (result                                    (call "path" (namestring missing)))
+                      (content                                   (tool-result-content result)))
                  (test-assert
                   (and (not (tool-result-success-p result))
                        (<= (length content) 60)
@@ -434,125 +434,125 @@
                          (search "No recognized Common Lisp, Scheme, or Clojure files"
                                  (tool-result-content result)))
                     "lisp.paren-check refuses to claim success for an empty source set")))
-                (let* ((outside (merge-pathnames "outside/" root))
-                       (outside-file
-                         (merge-pathnames "outside.lisp" outside)))
-                  (write-text outside-file "(list 1)")
-                  (let ((*test-readable-roots* (list tree)))
-                    (test-assert
-                     (not (tool-result-success-p
-                           (call "path" (namestring outside))))
-                     "lisp.paren-check honors restricted workspace read roots"))
-                  (let ((escape (merge-pathnames "escape" tree)))
-                    (unwind-protect
-                         (progn
-                           (sb-posix:symlink (namestring outside)
-                                             (namestring escape))
-                           (let ((result (call "path" (namestring tree))))
-                             (test-assert
-                              (and (not (tool-result-success-p result))
-                                   (search "outside the requested root"
-                                           (tool-result-content result)))
-                              "recursive checks refuse symbolic-link escapes")))
-                      (when (probe-file escape)
-                        (sb-posix:unlink (namestring escape)))))
-                  (let ((link (merge-pathnames "balanced-link.lisp" tree)))
-                    (unwind-protect
-                         (progn
-                           (sb-posix:symlink (namestring balanced)
-                                             (namestring link))
-                           (let ((*test-readable-roots* (list tree)))
-                             (test-assert
-                              (tool-result-success-p
-                               (call "path" (namestring link)))
-                              "direct checks accept stable source symlinks inside the readable root")))
-                      (when (probe-file link)
-                        (sb-posix:unlink (namestring link)))))
-                  (let* ((race (merge-pathnames "race.lisp" tree))
-                         (backup (merge-pathnames "race-original.lisp" tree))
-                         (outside-race
-                           (merge-pathnames "race-target.lisp" outside)))
-                    (write-text race "()")
-                    (with-open-file (stream outside-race
-                                            :direction :output
-                                            :if-exists :supersede
-                                            :if-does-not-exist :create
-                                            :element-type '(unsigned-byte 8))
-                      (write-byte 255 stream))
-                    (unwind-protect
-                         (let ((*test-readable-roots* (list tree))
-                                (*lisp-paren-check-after-first-read-function*
-                                 (lambda (opened)
-                                   (declare (ignore opened))
-                                   (rename-file race backup)
-                                   (sb-posix:symlink
-                                    (namestring outside-race)
-                                    (namestring race)))))
-                           (let* ((result (call "path" (namestring race)))
-                                  (content (tool-result-content result)))
-                             (test-assert
-                              (and (not (tool-result-success-p result))
-                                   (search "outside the readable workspace and source roots"
-                                           content)
-                                   (not (search "not valid UTF-8" content)))
-                              "descriptor checks reject a path replacement before reading outside authority")))
-                      (when (probe-file backup)
-                        (ignore-errors (sb-posix:unlink (namestring race)))
-                        (rename-file backup race)))))
-                (let* ((outside (merge-pathnames "outside/" root))
-                       (directory-race
-                         (merge-pathnames "directory-race/" root))
-                       (directory-link
-                         (merge-pathnames "directory-race" root))
-                       (directory-backup
-                         (merge-pathnames "directory-race-original/" root)))
-                    (write-text
-                     (merge-pathnames "inside.lisp" directory-race)
-                     "()")
-                    (unwind-protect
-                         (let ((*test-readable-roots*
-                                 (list directory-race))
-                               (*lisp-paren-check-after-directory-open-function*
-                                 (lambda (opened)
-                                   (declare (ignore opened))
-                                   (rename-file directory-race directory-backup)
-                                   (sb-posix:symlink
-                                    (namestring outside)
-                                    (namestring directory-link)))))
-                           (let* ((result
-                                    (call "path" (namestring directory-race)))
-                                  (content (tool-result-content result)))
-                             (test-assert
-                              (and (not (tool-result-success-p result))
-                                   (search "changed during traversal" content)
-                                   (not (search "outside.lisp" content)))
-                              "directory descriptor checks reject replacement before outside traversal")))
-                      (when (probe-file directory-backup)
-                        (ignore-errors
-                          (sb-posix:unlink (namestring directory-link)))
-                        (rename-file directory-backup directory-race))))
-                  (let ((mutable (merge-pathnames "mutable.lisp" tree)))
-                    (write-text mutable "()")
-                    (let ((*lisp-paren-check-after-first-read-function*
-                            (lambda (opened)
-                              (declare (ignore opened))
-                              (with-open-file (stream mutable
-                                                      :direction :output
-                                                      :if-exists :overwrite
-                                                      :external-format :utf-8)
-                                (write-string ")(" stream)
-                                (finish-output stream)))))
-                      (let* ((result (call "path" (namestring mutable)))
-                             (content (tool-result-content result)))
-                        (test-assert
-                         (and (not (tool-result-success-p result))
-                              (search "changed while it was being read" content))
-                         "repeated descriptor snapshots reject same-size in-place changes"))))
+               (let* ((outside (merge-pathnames "outside/" root))
+                      (outside-file
+                        (merge-pathnames "outside.lisp" outside)))
+                 (write-text outside-file "(list 1)")
+                 (let ((*test-readable-roots* (list tree)))
+                   (test-assert
+                    (not (tool-result-success-p
+                          (call "path" (namestring outside))))
+                    "lisp.paren-check honors restricted workspace read roots"))
+                 (let ((escape (merge-pathnames "escape" tree)))
+                   (unwind-protect
+                        (progn
+                          (sb-posix:symlink (namestring outside)
+                                            (namestring escape))
+                          (let ((result (call "path" (namestring tree))))
+                            (test-assert
+                             (and (not (tool-result-success-p result))
+                                  (search "outside the requested root"
+                                          (tool-result-content result)))
+                             "recursive checks refuse symbolic-link escapes")))
+                     (when (probe-file escape)
+                       (sb-posix:unlink (namestring escape)))))
+                 (let ((link (merge-pathnames "balanced-link.lisp" tree)))
+                   (unwind-protect
+                        (progn
+                          (sb-posix:symlink (namestring balanced)
+                                            (namestring link))
+                          (let ((*test-readable-roots* (list tree)))
+                            (test-assert
+                             (tool-result-success-p
+                              (call "path" (namestring link)))
+                             "direct checks accept stable source symlinks inside the readable root")))
+                     (when (probe-file link)
+                       (sb-posix:unlink (namestring link)))))
+                 (let* ((race   (merge-pathnames "race.lisp" tree))
+                        (backup (merge-pathnames "race-original.lisp" tree))
+                        (outside-race
+                          (merge-pathnames "race-target.lisp" outside)))
+                   (write-text race "()")
+                   (with-open-file (stream outside-race
+                                           :direction         :output
+                                           :if-exists         :supersede
+                                           :if-does-not-exist :create
+                                           :element-type      '(unsigned-byte 8))
+                     (write-byte 255 stream))
+                   (unwind-protect
+                        (let ((*test-readable-roots* (list tree))
+                              (*lisp-paren-check-after-first-read-function*
+                               (lambda (opened)
+                                 (declare (ignore opened))
+                                 (rename-file race backup)
+                                 (sb-posix:symlink
+                                  (namestring outside-race)
+                                  (namestring race)))))
+                          (let* ((result  (call "path" (namestring race)))
+                                 (content (tool-result-content result)))
+                            (test-assert
+                             (and (not (tool-result-success-p result))
+                                  (search "outside the readable workspace and source roots"
+                                          content)
+                                  (not (search "not valid UTF-8" content)))
+                             "descriptor checks reject a path replacement before reading outside authority")))
+                     (when (probe-file backup)
+                       (ignore-errors (sb-posix:unlink (namestring race)))
+                       (rename-file backup race)))))
+               (let* ((outside (merge-pathnames "outside/" root))
+                      (directory-race
+                        (merge-pathnames "directory-race/" root))
+                      (directory-link
+                        (merge-pathnames "directory-race" root))
+                      (directory-backup
+                        (merge-pathnames "directory-race-original/" root)))
+                   (write-text
+                    (merge-pathnames "inside.lisp" directory-race)
+                    "()")
+                   (unwind-protect
+                        (let ((*test-readable-roots*
+                                (list directory-race))
+                              (*lisp-paren-check-after-directory-open-function*
+                                (lambda (opened)
+                                  (declare (ignore opened))
+                                  (rename-file directory-race directory-backup)
+                                  (sb-posix:symlink
+                                   (namestring outside)
+                                   (namestring directory-link)))))
+                          (let* ((result
+                                   (call "path" (namestring directory-race)))
+                                 (content (tool-result-content result)))
+                            (test-assert
+                             (and (not (tool-result-success-p result))
+                                  (search "changed during traversal" content)
+                                  (not (search "outside.lisp" content)))
+                             "directory descriptor checks reject replacement before outside traversal")))
+                     (when (probe-file directory-backup)
+                       (ignore-errors
+                         (sb-posix:unlink (namestring directory-link)))
+                       (rename-file directory-backup directory-race))))
+               (let ((mutable (merge-pathnames "mutable.lisp" tree)))
+                 (write-text mutable "()")
+                 (let ((*lisp-paren-check-after-first-read-function*
+                         (lambda (opened)
+                           (declare (ignore opened))
+                           (with-open-file (stream mutable
+                                                   :direction       :output
+                                                   :if-exists       :overwrite
+                                                   :external-format :utf-8)
+                             (write-string ")(" stream)
+                             (finish-output stream)))))
+                   (let* ((result  (call "path" (namestring mutable)))
+                          (content (tool-result-content result)))
+                     (test-assert
+                      (and (not (tool-result-success-p result))
+                           (search "changed while it was being read" content))
+                      "repeated descriptor snapshots reject same-size in-place changes"))))
                (let ((limited (merge-pathnames "file-limit/" root)))
                  (write-text (merge-pathnames "one.lisp" limited) "()")
                  (write-text (merge-pathnames "two.lisp" limited) "()")
                  (let* ((*lisp-paren-check-file-limit* 1)
-                        (result (call "path" (namestring limited))))
+                        (result                        (call "path" (namestring limited))))
                    (test-assert
                     (and (not (tool-result-success-p result))
                          (search "more than its 1-file limit"
@@ -561,8 +561,8 @@
                (let ((large (merge-pathnames "large.lisp" root)))
                  (write-text large "(list 1)")
                  (let* ((*lisp-paren-check-file-character-limit* 4)
-                        (result (call "path" (namestring large)))
-                        (content (tool-result-content result)))
+                        (result                                  (call "path" (namestring large)))
+                        (content                                 (tool-result-content result)))
                    (test-assert
                     (and (not (tool-result-success-p result))
                          (search "Checked 0 of 1" content)
@@ -572,8 +572,8 @@
                  (write-text (merge-pathnames "a.lisp" aggregate) "()")
                  (write-text (merge-pathnames "b.lisp" aggregate) "()")
                  (let* ((*lisp-paren-check-total-character-limit* 2)
-                        (result (call "path" (namestring aggregate)))
-                        (content (tool-result-content result)))
+                        (result                                   (call "path" (namestring aggregate)))
+                        (content                                  (tool-result-content result)))
                    (test-assert
                     (and (not (tool-result-success-p result))
                          (search "Checked 1 of 2" content)
@@ -581,25 +581,25 @@
                     "lisp.paren-check reports incomplete aggregate-budget checks")))
                (let ((malformed (merge-pathnames "malformed.lisp" root)))
                  (with-open-file (stream malformed
-                                         :direction :output
-                                         :if-exists :supersede
+                                         :direction         :output
+                                         :if-exists         :supersede
                                          :if-does-not-exist :create
-                                         :element-type '(unsigned-byte 8))
+                                         :element-type      '(unsigned-byte 8))
                    (write-byte 255 stream))
                  (let ((result (call "path" (namestring malformed))))
                    (test-assert
                     (and (not (tool-result-success-p result))
-                           (search "not valid UTF-8"
-                                   (tool-result-content result)))
+                         (search "not valid UTF-8"
+                                 (tool-result-content result)))
                     "lisp.paren-check reports malformed source without crashing")))
-                (dolist (limit '(0 1 10 45 46 47 48 49 50))
-                  (let* ((*lisp-paren-check-result-character-limit* limit)
-                         (content
-                           (parenchek::lisp-paren-check--bounded-result
-                            (make-string 200 :initial-element #\x))))
-                    (test-assert
-                     (<= (length content) limit)
-                     "lisp.paren-check never exceeds a tiny result bound")))
+               (dolist (limit '(0 1 10 45 46 47 48 49 50))
+                 (let* ((*lisp-paren-check-result-character-limit* limit)
+                        (content
+                          (parenchek::lisp-paren-check--bounded-result
+                           (make-string 200 :initial-element #\x))))
+                   (test-assert
+                    (<= (length content) limit)
+                    "lisp.paren-check never exceeds a tiny result bound")))
                (let* ((*lisp-paren-check-result-character-limit* 40)
                       (condition
                         (make-condition
@@ -607,24 +607,24 @@
                          :message
                          (format nil "unsafe~%~A"
                                  (make-string 100 :initial-element #\x))))
-                      (message (lisp-paren-check-error-message condition)))
+                      (message                                   (lisp-paren-check-error-message condition)))
                  (test-assert
                   (and (<= (length message) 40)
                        (not (find #\Newline message)))
                   "Public checker conditions bound and sanitize their messages"))
                (let ((many (merge-pathnames "many-issues.lisp" root)))
                  (write-text many (make-string 200 :initial-element #\)))
-                 (let* ((*lisp-paren-check-issue-limit-per-file* 100)
+                 (let* ((*lisp-paren-check-issue-limit-per-file*   100)
                         (*lisp-paren-check-result-character-limit* 220)
-                        (result (call "path" (namestring many)))
-                        (content (tool-result-content result)))
+                        (result                                    (call "path" (namestring many)))
+                        (content                                   (tool-result-content result)))
                   (test-assert
                    (and (not (tool-result-success-p result))
                         (<= (length content) 220)
                         (search "diagnostic output truncated" content))
                    "lisp.paren-check bounds its complete model-visible result"))))))
       (uiop:delete-directory-tree root
-                                  :validate t
+                                  :validate          t
                                   :if-does-not-exist :ignore)))
   nil)
 

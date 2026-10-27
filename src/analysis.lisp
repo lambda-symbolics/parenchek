@@ -40,8 +40,8 @@
   (delimiter
     (lisp-source-delimiter-create
      :character #\(
-     :line 1
-     :column 1)
+     :line      1
+     :column    1)
     :type lisp-source-delimiter)
   (opener nil :type (or null lisp-source-delimiter))
   (expected-character nil :type (or null character)))
@@ -72,9 +72,12 @@
 (defun lisp-source-balance--language-name (language)
   "Return the user-visible name for recognized LANGUAGE."
   (ecase language
-    (:common-lisp "Common Lisp")
-    (:scheme "Scheme")
-    (:clojure "Clojure")))
+    (:common-lisp
+     "Common Lisp")
+    (:scheme
+     "Scheme")
+    (:clojure
+     "Clojure")))
 
 
 ;;;; -- Lexical Delimiter Analysis --
@@ -114,9 +117,12 @@
 (defun lisp-source-balance--expected-closer (opener)
   "Return the closing delimiter paired with OPENER."
   (case opener
-    (#\( #\))
-    (#\[ #\])
-    (#\{ #\})
+    (#\(
+     #\))
+    (#\[
+     #\])
+    (#\{
+     #\})
     (otherwise
      nil)))
 
@@ -142,19 +148,19 @@
   datum-discard markers do not suppress delimiter checking of what follows because
   the reader must still parse the discarded datum. ISSUE-LIMIT bounds retained
   diagnostics without stopping analysis."
-  (let ((index 0)
-        (line 1)
-        (column 1)
-        (content-length (length content))
-        (stack (make-array 32 :adjustable t :fill-pointer 0))
-        (issues nil)
-        (issue-count 0)
+  (let ((index                0)
+        (line                 1)
+        (column               1)
+        (content-length       (length content))
+        (stack                (make-array 32 :adjustable t :fill-pointer 0))
+        (issues               nil)
+        (issue-count          0)
         (retained-issue-count 0)
-        (in-string-p nil)
-        (string-escaped-p nil)
-        (in-escaped-symbol-p nil)
-        (symbol-escaped-p nil)
-        (block-comment-depth 0))
+        (in-string-p          nil)
+        (string-escaped-p     nil)
+        (in-escaped-symbol-p  nil)
+        (symbol-escaped-p     nil)
+        (block-comment-depth  0))
     (labels ((peek (&optional (offset 0))
                "Return the character OFFSET positions ahead, or NIL at end."
                (let ((position (+ index offset)))
@@ -185,14 +191,14 @@
                          (< retained-issue-count issue-limit))
                  (push
                   (lisp-source-balance-issue-create
-                   :kind kind
+                   :kind               kind
                    :delimiter
                    (or delimiter
                        (lisp-source-delimiter-create
                         :character delimiter-character
-                        :line delimiter-line
-                        :column delimiter-column))
-                   :opener opener
+                        :line      delimiter-line
+                        :column    delimiter-column))
+                   :opener             opener
                    :expected-character expected-character)
                   issues)
                  (incf retained-issue-count)))
@@ -217,8 +223,8 @@
                "Return a delimiter record for the current source position."
                (lisp-source-delimiter-create
                 :character (peek)
-                :line line
-                :column column))
+                :line      line
+                :column    column))
 
              (consume-line-comment ()
                "Advance to, but not through, the current line ending."
@@ -336,8 +342,8 @@
                       (record-issue
                        ':unexpected-close
                        :delimiter-character character
-                       :delimiter-line line
-                       :delimiter-column column)
+                       :delimiter-line      line
+                       :delimiter-column    column)
                       (let* ((opener (vector-pop stack))
                              (expected
                                (lisp-source-balance--expected-closer
@@ -346,10 +352,10 @@
                           (record-issue
                            ':mismatched-close
                            :delimiter-character character
-                           :delimiter-line line
-                           :delimiter-column column
-                           :opener opener
-                           :expected-character expected))))
+                           :delimiter-line      line
+                           :delimiter-column    column
+                           :opener              opener
+                           :expected-character  expected))))
                   (advance-one))
                  (t
                   (advance-one))))
@@ -391,7 +397,7 @@
 (-> lisp-source-balance--bounded-warning (string) string)
 (defun lisp-source-balance--bounded-warning (content)
   "Return CONTENT within the exact advisory warning character limit."
-  (let* ((limit (max 0 *lisp-source-balance-warning-character-limit*))
+  (let* ((limit  (max 0 *lisp-source-balance-warning-character-limit*))
          (marker "... delimiter warning truncated.")
          (suffix (format nil "~%~A" marker)))
     (cond
@@ -412,8 +418,8 @@
   "Return one bounded model-facing description of ISSUE."
   (let* ((delimiter (lisp-source-balance-issue-delimiter issue))
          (character (lisp-source-delimiter-character delimiter))
-         (line (lisp-source-delimiter-line delimiter))
-         (column (lisp-source-delimiter-column delimiter)))
+         (line      (lisp-source-delimiter-line delimiter))
+         (column    (lisp-source-delimiter-column delimiter)))
     (ecase (lisp-source-balance-issue-kind issue)
       (:unexpected-close
        (format nil "- line ~D, column ~D: unexpected closing `~C`."

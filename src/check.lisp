@@ -4,12 +4,12 @@
 
 (define-condition lisp-paren-check-error (error)
   ((message
-    :initarg :message
+    :initarg       :message
     :documentation "The raw failure text exposed through a bounded reader.")
    (tool-name
-    :initarg :tool-name
-    :initform "lisp.paren-check"
-    :reader lisp-paren-check-error-tool-name
+    :initarg       :tool-name
+    :initform      "lisp.paren-check"
+    :reader        lisp-paren-check-error-tool-name
     :documentation "The operation name associated with the failure."))
   (:documentation "A safe source traversal or snapshot failure.")
   (:report
@@ -189,7 +189,7 @@ one names a request that never was inside them."
                        (lisp-paren-check--canonical-subpath-p (truename path) root))
                      readable-roots))
     (error 'lisp-paren-check-error
-           :message (format nil "~A is outside the readable roots." path)
+           :message   (format nil "~A is outside the readable roots." path)
            :tool-name "lisp.paren-check"))
   nil)
 
@@ -201,8 +201,8 @@ one names a request that never was inside them."
   "Return a stable canonical pathname and stat observation for existing PATH."
   (labels ((observe ()
              "Return one internally consistent canonical observation of PATH."
-             (let* ((canonical (truename path))
-                    (path-stat (lisp-paren-check--observe path))
+             (let* ((canonical      (truename path))
+                    (path-stat      (lisp-paren-check--observe path))
                     (canonical-stat (lisp-paren-check--observe canonical)))
                (lisp-paren-check--validate-canonical-path
                 path canonical readable-roots :requested-root requested-root)
@@ -254,7 +254,7 @@ directory through the descriptor."
       (when (sb-alien:null-alien handle)
         (sb-posix:close descriptor)
         (error 'lisp-paren-check-error
-               :message (format nil "Could not open Lisp source directory ~A." directory)
+               :message   (format nil "Could not open Lisp source directory ~A." directory)
                :tool-name "lisp.paren-check"))
       (values handle descriptor))))
 
@@ -298,9 +298,9 @@ directory through the descriptor."
 #-win32
 (defun lisp-paren-check--directory-entry-names (directory entry-limit)
   "Return sorted entry names from open DIRECTORY within ENTRY-LIMIT."
-  (let ((names nil)
+  (let ((names       nil)
         (entry-count 0)
-        (exceeded-p nil))
+        (exceeded-p  nil))
     (loop for entry = (sb-posix:readdir directory)
           until (sb-alien:null-alien entry)
           for name = (sb-posix:dirent-name entry)
@@ -320,13 +320,13 @@ directory through the descriptor."
 (defun lisp-paren-check--classify-directory-entries
     (directory opened-stat names)
   "Return recognized files and subdirectories named by verified DIRECTORY."
-  (let ((files nil)
+  (let ((files          nil)
         (subdirectories nil))
     (dolist (name names)
       (lisp-paren-check--validate-directory-path directory opened-stat)
-      (let* ((path (merge-pathnames name directory))
+      (let* ((path   (merge-pathnames name directory))
              (status (lisp-paren-check--observe path :follow-links-p nil))
-             (kind (ls-compat.posix:file-information-kind status)))
+             (kind   (ls-compat.posix:file-information-kind status)))
         (cond
           ((eq kind ':directory)
            (push (uiop:ensure-directory-pathname path) subdirectories))
@@ -364,10 +364,14 @@ directory through the descriptor."
          (mode (sb-posix:stat-mode stat)))
     (ls-compat.posix:make-file-information
      (cond
-       ((sb-posix:s-isreg mode) ':file)
-       ((sb-posix:s-isdir mode) ':directory)
-       ((sb-posix:s-islnk mode) ':symbolic-link)
-       (t ':other))
+       ((sb-posix:s-isreg mode)
+        ':file)
+       ((sb-posix:s-isdir mode)
+        ':directory)
+       ((sb-posix:s-islnk mode)
+        ':symbolic-link)
+       (t
+        ':other))
      (cons (sb-posix:stat-dev stat) (sb-posix:stat-ino stat))
      (sb-posix:stat-size stat)
      (sb-posix:stat-mtime stat)
@@ -446,7 +450,7 @@ Enumeration stops at the first entry beyond ENTRY-LIMIT. The third value is the
 number of retained entries, and the fourth value reports whether the limit was
 exceeded. Symbolic links are classified by their targets; an unresolved link
 makes the check fail rather than silently claiming complete coverage."
-  (let ((handle nil)
+  (let ((handle     nil)
         (descriptor nil))
     (unwind-protect
          (progn
@@ -524,14 +528,14 @@ makes the check fail rather than silently claiming complete coverage."
 (defun lisp-paren-check--directory-files
     (root &key canonical-root root-stat readable-roots)
   "Return bounded recognized source files beneath verified directory ROOT."
-  (let* ((root (uiop:ensure-directory-pathname root))
-         (canonical-root (uiop:ensure-directory-pathname canonical-root))
+  (let* ((root                (uiop:ensure-directory-pathname root))
+         (canonical-root      (uiop:ensure-directory-pathname canonical-root))
          (visited-directories (make-hash-table :test #'equal))
-         (visited-files (make-hash-table :test #'equal))
-         (files nil)
-         (file-count 0)
-         (directory-count 0)
-         (entry-count 0))
+         (visited-files       (make-hash-table :test #'equal))
+         (files               nil)
+         (file-count          0)
+         (directory-count     0)
+         (entry-count         0))
     (labels ((walk (directory depth &key canonical status)
                "Traverse verified DIRECTORY at DEPTH beneath CANONICAL-ROOT."
                (when (> depth (max 0 *lisp-paren-check-depth-limit*))
@@ -609,7 +613,7 @@ makes the check fail rather than silently claiming complete coverage."
                        (walk subdirectory
                              (1+ depth)
                              :canonical canonical-subdirectory
-                             :status subdirectory-stat)))))))
+                             :status    subdirectory-stat)))))))
       (walk root 0 :canonical canonical-root :status root-stat))
     (values (sort files #'lisp-paren-check--pathname<)
             canonical-root)))
@@ -672,11 +676,11 @@ makes the check fail rather than silently claiming complete coverage."
 
 Return the content, retained character count, and whether more input existed.
 The content is NIL when the limit was exceeded."
-  (let* ((limit (max 0 character-limit))
+  (let* ((limit     (max 0 character-limit))
          (byte-limit
            (min (* 4 limit) (1- array-total-size-limit)))
          (open-path (truename path))
-         (stream nil))
+         (stream    nil))
     (lisp-paren-check--validate-canonical-path
      path open-path readable-roots :requested-root canonical-root)
     (unwind-protect
@@ -685,7 +689,7 @@ The content is NIL when the limit was exceeded."
                  (ls-compat.posix:open-regular-file open-path)
                (ls-compat.posix:not-regular-file ()
                  (error 'lisp-paren-check-error
-                        :message (format nil "~A is not a regular file." path)
+                        :message   (format nil "~A is not a regular file." path)
                         :tool-name "lisp.paren-check")))
            (setf stream opened-stream)
            (progn
@@ -759,18 +763,18 @@ The content is NIL when the limit was exceeded."
 (defun lisp-paren-check--check-files
     (files &key canonical-root readable-roots)
   "Check sorted recognized FILES within bounded source and diagnostic budgets."
-  (let ((candidate-count (length files))
-        (checked-count 0)
+  (let ((candidate-count  (length files))
+        (checked-count    0)
         (issue-file-count 0)
-        (issue-count 0)
+        (issue-count      0)
         (total-characters 0)
-        (diagnostics nil)
-        (file-limit (max 0 *lisp-paren-check-file-character-limit*))
-        (total-limit (max 0 *lisp-paren-check-total-character-limit*))
-        (detail-limit (max 0 *lisp-paren-check-issue-limit-per-file*)))
+        (diagnostics      nil)
+        (file-limit       (max 0 *lisp-paren-check-file-character-limit*))
+        (total-limit      (max 0 *lisp-paren-check-total-character-limit*))
+        (detail-limit     (max 0 *lisp-paren-check-issue-limit-per-file*)))
     (loop for file in files
           do
-             (let* ((remaining (max 0 (- total-limit total-characters)))
+             (let* ((remaining  (max 0 (- total-limit total-characters)))
                     (read-limit (min file-limit remaining)))
                (handler-case
                    (multiple-value-bind (content character-count exceeded-p)
@@ -810,9 +814,9 @@ The content is NIL when the limit was exceeded."
                               (incf issue-count count)
                               (push
                                (lisp-paren-check-diagnostic-create
-                                :path file
-                                :language language
-                                :issues issues
+                                :path        file
+                                :language    language
+                                :issues      issues
                                 :issue-count count)
                                diagnostics)))))))
                  (error (condition)
@@ -825,11 +829,11 @@ The content is NIL when the limit was exceeded."
                              (lisp-paren-check--single-line condition 300)))
                     diagnostics)))))
     (lisp-paren-check-run-create
-     :candidate-count candidate-count
-     :checked-count checked-count
+     :candidate-count  candidate-count
+     :checked-count    checked-count
      :issue-file-count issue-file-count
-     :issue-count issue-count
-     :diagnostics (nreverse diagnostics))))
+     :issue-count      issue-count
+     :diagnostics      (nreverse diagnostics))))
 
 
 ;;;; -- Model-Facing Result --
@@ -846,7 +850,7 @@ The content is NIL when the limit was exceeded."
 (-> lisp-paren-check--bounded-result (string) string)
 (defun lisp-paren-check--bounded-result (content)
   "Return CONTENT within the exact lisp.paren-check result-character limit."
-  (let* ((limit (max 0 *lisp-paren-check-result-character-limit*))
+  (let* ((limit  (max 0 *lisp-paren-check-result-character-limit*))
          (marker "... lisp.paren-check diagnostic output truncated.")
          (suffix (format nil "~%~A" marker)))
     (cond
@@ -865,9 +869,9 @@ The content is NIL when the limit was exceeded."
 (-> lisp-paren-check--bounded-line (t) string)
 (defun lisp-paren-check--bounded-line (value)
   "Return VALUE as one control-free line within the exact result limit."
-  (let* ((limit (max 0 *lisp-paren-check-result-character-limit*))
+  (let* ((limit  (max 0 *lisp-paren-check-result-character-limit*))
          (marker "... lisp.paren-check result truncated.")
-         (text (lisp-paren-check--single-line value (1+ limit))))
+         (text   (lisp-paren-check--single-line value (1+ limit))))
     (cond
       ((<= (length text) limit)
        text)
@@ -891,15 +895,15 @@ The content is NIL when the limit was exceeded."
     string)
 (defun lisp-paren-check--result-content (path root run)
   "Return one bounded model-facing summary and exact retained diagnostics for RUN."
-  (let* ((candidate-count (lisp-paren-check-run-candidate-count run))
-         (checked-count (lisp-paren-check-run-checked-count run))
-         (issue-file-count (lisp-paren-check-run-issue-file-count run))
-         (issue-count (lisp-paren-check-run-issue-count run))
+  (let* ((candidate-count   (lisp-paren-check-run-candidate-count run))
+         (checked-count     (lisp-paren-check-run-checked-count run))
+         (issue-file-count  (lisp-paren-check-run-issue-file-count run))
+         (issue-count       (lisp-paren-check-run-issue-count run))
          (not-checked-count (- candidate-count checked-count))
-         (diagnostics (lisp-paren-check-run-diagnostics run))
-         (report-limit (max 0 *lisp-paren-check-reported-file-limit*))
-         (reported-count (min report-limit (length diagnostics)))
-         (reported (subseq diagnostics 0 reported-count)))
+         (diagnostics       (lisp-paren-check-run-diagnostics run))
+         (report-limit      (max 0 *lisp-paren-check-reported-file-limit*))
+         (reported-count    (min report-limit (length diagnostics)))
+         (reported          (subseq diagnostics 0 reported-count)))
     (lisp-paren-check--bounded-result
      (with-output-to-string (stream)
        (format stream "Path: ~A~%" (lisp-paren-check--path-label path nil))
@@ -982,7 +986,7 @@ retained as failed file diagnostics in the returned report."
                   path
                   :canonical-root
                   (uiop:ensure-directory-pathname canonical)
-                  :root-stat stat
+                  :root-stat      stat
                   :readable-roots readable-roots)
                (if (null files)
                    (values
