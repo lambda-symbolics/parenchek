@@ -390,7 +390,7 @@ directory is observed by path before and after each pass instead."
            "Return the sorted entry names of DIRECTORY and whether more exist."
            (multiple-value-bind (entries exceeded-p)
                (ls-compat.posix:directory-entries directory :limit entry-limit)
-             (values (sort (mapcar #'car entries) #'string<) exceeded-p))))
+             (values (sort (mapcar #'first entries) #'string<) exceeded-p))))
     (lisp-paren-check--validate-directory-path directory expected-stat)
     (when *lisp-paren-check-after-directory-open-function*
       (funcall *lisp-paren-check-after-directory-open-function* directory))
