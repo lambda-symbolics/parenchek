@@ -54,9 +54,3 @@
    #:lisp-paren-check-run-diagnostics
    #:lisp-paren-check-run-success-p
    #:lisp-paren-check-path))
-
-(in-package #:parenchek)
-
-(deftype option (inner-type)
-  "A value that is either NIL or an instance of INNER-TYPE."
-  `(or null ,inner-type))

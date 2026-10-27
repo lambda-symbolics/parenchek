@@ -10,6 +10,7 @@
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
+                             (:file "types")
                              (:file "analysis")
                              (:file "check"))))
   :in-order-to ((asdf:test-op (asdf:test-op #:parenchek/tests))))
