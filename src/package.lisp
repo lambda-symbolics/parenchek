@@ -1,4 +1,5 @@
 (defpackage #:parenchek
+  (:documentation "Check delimiter balance in Common Lisp, Scheme, and Clojure source.")
   (:use #:cl)
   (:import-from #:serapeum
                 #:->)

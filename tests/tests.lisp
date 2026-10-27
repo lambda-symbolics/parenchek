@@ -1,4 +1,5 @@
 (defpackage #:parenchek/tests
+  (:documentation "Tests for Parenchek.")
   (:use #:cl)
   (:import-from #:serapeum
                 #:->)
